@@ -987,7 +987,7 @@ TEST(
  *        outputs_,
  *        tc::MappingOptions::makeMlpMappingOptions(), true);
  *    at::Tensor diff =
- *        outputs_[0].sub(inputs_[0].mm(inputs_[1]).add(inputs_[2]).clamp(0));
+ *        outputs_[0].sub(inputs_[0].mm(inputs_[1]).add(inputs_[2]).clamp_min(0));
  *    checkRtol(diff, inputs_, M);
  *  }
  *
@@ -1048,8 +1048,7 @@ class ConvolutionTester {
     auto handle = atCompl.compile("convolution", inputs_, options);
     atCompl.run("convolution", inputs_, outputs_, handle, true);
 
-    at::Tensor expected =
-        at::conv2d(inputs_[0], inputs_[1], at::IntList({KH, KW}), inputs_[2]);
+    at::Tensor expected = at::conv2d(inputs_[0], inputs_[1], inputs_[2]);
     at::Tensor diff = outputs_[1].sub(expected);
     checkRtol(diff, inputs_, C * KW * KH, 1e-6);
   }
