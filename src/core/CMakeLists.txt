@@ -92,10 +92,14 @@ if (WITH_CUDA)
     cuda/cuda_compilation_cache.cc
     cuda/cuda_rtc.cc
     cuda/cuda_tc_executor.cc
+    cuda/cuda_profile.cc
 
     polyhedral/codegen_cuda.cc
   )
-  target_include_directories(tc_core_cuda PUBLIC ${PROJECT_SOURCE_DIR}/include ${LLVM_INCLUDE_DIRS})
+  target_include_directories(tc_core_cuda PUBLIC 
+      ${PROJECT_SOURCE_DIR}/include
+      ${LLVM_INCLUDE_DIRS} 
+      ${CUDA_TOOLKIT_ROOT_DIR}/extras/CUPTI/include)
   target_link_libraries(
     tc_core_cuda
 
@@ -103,6 +107,7 @@ if (WITH_CUDA)
     ${CUDA_curand_LIBRARY}
     ${CUDA_LIBRARIES}
     ${CUDA_NVRTC_LIBRARIES}
+    ${CUDA_cupti_LIBRARY}
     ${ISL_LIBRARIES}
 
     tc_lang

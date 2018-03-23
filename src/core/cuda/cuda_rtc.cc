@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <cuda_runtime.h>
+#include <cupti.h>
 #include <nvrtc.h>
 
 #include "tc/core/cuda/cuda.h"
@@ -202,5 +203,65 @@ Duration CudaRTCFunction::Launch(
   TC_CUDA_RUNTIMEAPI_ENFORCE(cudaEventDestroy(start));
   TC_CUDA_RUNTIMEAPI_ENFORCE(cudaEventDestroy(stop));
   return std::chrono::microseconds(static_cast<int64_t>(milliseconds * 1000));
+}
+
+CudaProfilingInfo CudaRTCFunction::Profile(
+    const std::array<size_t, 3>& grid,
+    const std::array<size_t, 3>& block,
+    unsigned int shared_mem,
+    cudaStream_t stream,
+    std::vector<int> params,
+    std::vector<void*> outputs,
+    std::vector<const void*> inputs) const {
+  int dev;
+  TC_CUDA_RUNTIMEAPI_ENFORCE(cudaGetDevice(&dev));
+  if (perGpuModule_.count(dev) == 0) {
+    perGpuModule_.emplace(dev, CUmodule());
+    perGpuKernel_.emplace(dev, CUfunction());
+    TC_CUDA_DRIVERAPI_ENFORCE(cuModuleLoadDataEx(
+        &(perGpuModule_.at(dev)), nvrtc_ptx.data(), 0, 0, 0));
+    TC_CUDA_DRIVERAPI_ENFORCE(cuModuleGetFunction(
+        &(perGpuKernel_.at(dev)),
+        perGpuModule_.at(dev),
+        specializedName.c_str()));
+  }
+
+  std::array<void*, 20> args_voidp{0};
+  CHECK_GE(20, params.size() + outputs.size() + inputs.size());
+  int ind = 0;
+  for (auto& p : params) {
+    args_voidp[ind++] = &p;
+  }
+  for (auto& o : outputs) {
+    args_voidp[ind++] = &o;
+  }
+  for (auto& i : inputs) {
+    args_voidp[ind++] = static_cast<void*>(&i);
+  }
+  // TODO: some sanity checks before launching such that we don't make clear
+  // mistakes
+  unsigned int gx = grid[0];
+  unsigned int gy = grid[1];
+  unsigned int gz = grid[2];
+  unsigned int bx = block[0];
+  unsigned int by = block[1];
+  unsigned int bz = block[2];
+  auto launch = [&]() {
+    TC_CUDA_DRIVERAPI_ENFORCE(cuLaunchKernel(
+        perGpuKernel_.at(dev),
+        gx,
+        gy,
+        gz,
+        bx,
+        by,
+        bz,
+        shared_mem,
+        stream,
+        args_voidp.data(),
+        0));
+  };
+
+  CudaProfiler profiler(launch, dev);
+  return profiler.Profile();
 }
 } // namespace tc
