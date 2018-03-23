@@ -32,6 +32,7 @@ namespace tc {
 
 class CudaTcExecutor : public ::tc::TcExecutor {
  public:
+  using ProfilingInfoType = CudaProfilingInfo;
   CudaTcExecutor(
       std::string id,
       const std::vector<const DLTensor*>& inputsInfo,
@@ -72,6 +73,10 @@ class CudaTcExecutor : public ::tc::TcExecutor {
       const std::vector<const DLTensor*>& inputs,
       const std::vector<DLTensor*>& outputs,
       bool profile = false) const;
+
+  CudaProfilingInfo profile(
+      const std::vector<const DLTensor*>& inputs,
+      const std::vector<DLTensor*>& outputs);
 
   // This is the "low-latency" mode in which we just propagate raw pointers to
   // data in GPU address space.

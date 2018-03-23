@@ -155,6 +155,42 @@ Duration ExecutionEngine<ExecutorType>::run(
   return res;
 }
 
+// Steal the executor instance and give it back under lock.
+// Run outside of lock on owning ExecutorType.
+template <typename ExecutorType>
+typename ExecutorType::ProfilingInfoType ExecutionEngine<ExecutorType>::profile(
+    size_t handle,
+    const std::vector<const DLTensor*>& inputs,
+    const std::vector<DLTensor*>& outputs) {
+  std::unique_ptr<ExecutorType> executorUPtr(nullptr);
+  {
+    std::lock_guard<std::mutex> lg(tcExecutorMutex_);
+    std::swap(executorUPtr, executors_[handle]);
+  }
+
+  // It turns out someone else may already be running this configuration in
+  // some unexpected cases: there is no guarantee of no-redundancy in
+  // compilation options. In that case, we swapped 2 nullptrs and we just
+  // exit.
+  Duration res(Duration::max());
+  if (executorUPtr) {
+    CHECK(executorUPtr->hasRuntimeCompiledFunction());
+    try {
+      // Must catch and swap to avoid exception in destructor!
+      res = executorUPtr->profile(inputs, outputs);
+    } catch (std::exception& e) {
+      std::lock_guard<std::mutex> lg(tcExecutorMutex_);
+      std::swap(executorUPtr, executors_[handle]);
+      throw;
+    }
+    {
+      std::lock_guard<std::mutex> lg(tcExecutorMutex_);
+      std::swap(executorUPtr, executors_[handle]);
+    }
+  }
+  return res;
+}
+
 // Steal ExecutorType and give it back under lock
 // Run outside of lock on owning ExecutorType.
 template <typename ExecutorType>

@@ -72,10 +72,15 @@ class ExecutionEngine {
       std::function<bool(const ExecutorType*)> pruningFunction =
           [](const ExecutorType*) { return false; });
 
-  /// "Low-latency" execution mode in which we just propagate raw pointers to
-  /// data in GPU address space.
-  /// No tensor-related information can be checked so it is the user's
-  /// responsibility to ensure that shapes and strides match.
+  typename ExecutorType::ProfilingInfoType profile(
+      size_t handle,
+      const std::vector<const DLTensor*>& inputs,
+      const std::vector<DLTensor*>& outputs);
+
+  /// "Low-latency" execution mode in which we just propagate raw pointers
+  /// to data in GPU address space. No tensor-related information can be
+  /// checked so it is the user's responsibility to ensure that shapes and
+  /// strides match.
   void uncheckedRun(
       size_t handle,
       const std::vector<const void*>& inputs,
