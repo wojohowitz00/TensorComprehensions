@@ -179,10 +179,9 @@ void CudaTcExecutor::compileWithTcMapper() {
   }
 }
 
-Duration CudaTcExecutor::run(
+void CudaTcExecutor::preRunChecks(
     const std::vector<const DLTensor*>& inputs,
-    const std::vector<DLTensor*>& outputs,
-    bool profile) const {
+    const std::vector<DLTensor*>& outputs) const {
   CHECK(rtcFun) << "Can't launch uncompiled: " << executionInfo_.kernelName;
   CHECK_NE(executionInfo_.options, "");
   checkSizesAndStridesAreCompliant(
@@ -192,6 +191,14 @@ Duration CudaTcExecutor::run(
       executionInfo_.outputsInfo,
       halideComponents_.getDef().returns());
 
+  CHECK_NE(grid[0], 0) << "Grid dims are not set up";
+  CHECK_NE(block[0], 0) << "Block dims are not set up";
+}
+
+std::pair<std::vector<const void*>, std::vector<void*>>
+CudaTcExecutor::prepareCudaArgs(
+    const std::vector<const DLTensor*>& inputs,
+    const std::vector<DLTensor*>& outputs) const {
   std::vector<const void*> I;
   std::vector<void*> O;
   for (int i = 0; i < inputs.size(); ++i) {
@@ -200,20 +207,54 @@ Duration CudaTcExecutor::run(
   for (int i = 0; i < outputs.size(); ++i) {
     O.push_back(outputs[i]->data);
   }
+  return std::make_pair(std::move(I), std::move(O));
+}
+
+Duration CudaTcExecutor::run(
+    const std::vector<const DLTensor*>& inputs,
+    const std::vector<DLTensor*>& outputs,
+    bool profile) const {
+  preRunChecks(inputs, outputs);
+  auto IO = prepareCudaArgs(inputs, outputs);
   cudaStream_t stream = 0;
-  CHECK_NE(grid[0], 0) << "Grid dims are not set up";
-  CHECK_NE(block[0], 0) << "Block dims are not set up";
   auto res = rtcFun->Launch(
       grid.extractDefaultedArray(),
       block.extractDefaultedArray(),
       0,
       stream,
       executionInfo_.kernelParams,
-      O,
-      I,
+      IO.second,
+      IO.first,
       profile);
+
   if (profile and OptionsCache::cacheEnabled()) {
     OptionsCache::getCache()->recordRuntime(
+        // TODO:replace this with pretty printed TC
+        executionInfo_.kernelName,
+        MappingOptions(executionInfo_.options),
+        inputs,
+        constPtrs(outputs),
+        res);
+  }
+  return res;
+}
+
+CudaProfilingInfo CudaTcExecutor::profile(
+    const std::vector<const DLTensor*>& inputs,
+    const std::vector<DLTensor*>& outputs) const {
+  preRunChecks(inputs, outputs);
+  auto IO = prepareCudaArgs(inputs, outputs);
+  cudaStream_t stream = 0;
+  auto res = rtcFun->Profile(
+      grid.extractDefaultedArray(),
+      block.extractDefaultedArray(),
+      0,
+      stream,
+      executionInfo_.kernelParams,
+      IO.second,
+      IO.first);
+  if (OptionsCache::cacheEnabled()) {
+    OptionsCache::getCache()->recordProfilingInfo(
         // TODO:replace this with pretty printed TC
         executionInfo_.kernelName,
         MappingOptions(executionInfo_.options),

@@ -172,12 +172,13 @@ typename ExecutorType::ProfilingInfoType ExecutionEngine<ExecutorType>::profile(
   // some unexpected cases: there is no guarantee of no-redundancy in
   // compilation options. In that case, we swapped 2 nullptrs and we just
   // exit.
-  Duration res(Duration::max());
+  typename ExecutorType::ProfilingInfoType pInfo;
+  pInfo.runtime = Duration::max();
   if (executorUPtr) {
     CHECK(executorUPtr->hasRuntimeCompiledFunction());
     try {
       // Must catch and swap to avoid exception in destructor!
-      res = executorUPtr->profile(inputs, outputs);
+      pInfo = executorUPtr->profile(inputs, outputs);
     } catch (std::exception& e) {
       std::lock_guard<std::mutex> lg(tcExecutorMutex_);
       std::swap(executorUPtr, executors_[handle]);
@@ -188,7 +189,7 @@ typename ExecutorType::ProfilingInfoType ExecutionEngine<ExecutorType>::profile(
       std::swap(executorUPtr, executors_[handle]);
     }
   }
-  return res;
+  return pInfo;
 }
 
 // Steal ExecutorType and give it back under lock
