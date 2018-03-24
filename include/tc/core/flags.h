@@ -55,6 +55,7 @@ DECLARE_string(tuner_rng_restore);
 DECLARE_bool(tuner_gen_restore_from_proto);
 DECLARE_uint32(tuner_gen_restore_number);
 DECLARE_bool(tuner_gen_log_generations);
+DECLARE_bool(tuner_gen_profiled_run);
 DECLARE_uint64(tuner_min_launch_total_threads);
 
 // Misc
