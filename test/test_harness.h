@@ -36,13 +36,13 @@ DEFINE_bool(use_nvprof, false, "Start / stop nvprof");
 
 namespace caffe2 {
 
-struct CudaProfiler {
-  CudaProfiler() {
+struct CudaTestProfiler {
+  CudaTestProfiler() {
     if (FLAGS_use_nvprof) {
       cudaProfilerStart();
     }
   }
-  ~CudaProfiler() {
+  ~CudaTestProfiler() {
     if (FLAGS_use_nvprof) {
       cudaProfilerStop();
     }
@@ -315,7 +315,7 @@ struct TestHarness {
 
     void RunReference() {
       ASSERT_TRUE(net_ref.get());
-      CudaProfiler p;
+      CudaTestProfiler p;
       ASSERT_TRUE(net_ref->Run());
     }
 
@@ -326,7 +326,7 @@ struct TestHarness {
 
     void Run() {
       ASSERT_TRUE(op_test.get());
-      CudaProfiler p;
+      CudaTestProfiler p;
       ASSERT_TRUE(op_test->Run());
     }
 
@@ -406,7 +406,7 @@ struct TestHarness {
       unique_ptr<OperatorBase> op_g(CreateOperator(g_op, &w));
       ASSERT_TRUE(op_g.get());
       {
-        CudaProfiler p;
+        CudaTestProfiler p;
         ASSERT_TRUE(op_g->Run());
       }
     }
@@ -424,7 +424,7 @@ struct TestHarness {
     unique_ptr<NetBase> ref_net(CreateNet(ref_net_def, &w1));
     ASSERT_TRUE(ref_net.get());
     {
-      CudaProfiler p;
+      CudaTestProfiler p;
       ASSERT_TRUE(ref_net->Run());
     }
 
@@ -433,7 +433,7 @@ struct TestHarness {
     unique_ptr<NetBase> net(CreateNet(net_def, &w2));
     ASSERT_TRUE(net.get());
     {
-      CudaProfiler p;
+      CudaTestProfiler p;
       ASSERT_TRUE(net->Run());
     }
 
@@ -467,7 +467,7 @@ struct TestHarness {
     unique_ptr<NetBase> net(CreateNet(net_def, &w1));
     ASSERT_TRUE(net.get());
     {
-      CudaProfiler p;
+      CudaTestProfiler p;
       ASSERT_TRUE(net->Run());
     }
     RunGradient(w1, *net_def.mutable_op()->Mutable(0));
@@ -477,7 +477,7 @@ struct TestHarness {
     unique_ptr<OperatorBase> op(CreateOperator(op_def, &w2));
     ASSERT_TRUE(op.get());
     {
-      CudaProfiler p;
+      CudaTestProfiler p;
       ASSERT_TRUE(op->Run());
     }
     OperatorDef def = op_def;
